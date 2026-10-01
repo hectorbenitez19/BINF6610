@@ -1,0 +1,40 @@
+{
+  "pipeline": {
+    "name": "variant-call",
+    "version": "1.0.0",
+    "implementation": "bash",
+    "git_sha": "3445673539bd0ea97d49d2e775366c79652cd6f3-dirty",
+    "run_id": "2026-10-01T03:25:57Z-3445673",
+    "started_at": "2026-10-01T03:25:57Z",
+    "finished_at": "2026-10-01T03:28:56Z",
+    "exit_status": "success"
+  },
+  "platform": {
+    "kind": "laptop",
+    "region": "smoke_1mb",
+    "host": "ROG-GU501GM",
+    "slurm_job_id": "none",
+    "slurm_cpus": "none",
+    "container": "none"
+  },
+  "reference": {"genome": "/home/hector/BINF6610/Assignment1/smoke/smoke.fa"},
+  "samples": [
+    {"sample_id": "smoke_01", "library_type": "paired", "condition": "unaffected"},
+    {"sample_id": "smoke_02", "library_type": "paired", "condition": "affected"},
+    {"sample_id": "smoke_03", "library_type": "single", "condition": "affected"}
+  ],
+  "outputs": [
+    {"stage": "analyze", "type": "vcf", "path": "cohort.filtered.vcf.gz", "checksum": "sha256:9d2d19038fc8a8455f75e5e5623ba30c6507e9147d325be8bac72b459c2bbc3f"},
+    {"stage": "analyze", "type": "vcf_index", "path": "cohort.filtered.vcf.gz.tbi", "checksum": "sha256:2681bcfc97f06f37030a3abf590b679d64fa8157a982dabae42901f39dfa0cfb"}
+  ],
+  "metrics": [],
+  "tools": {
+    "bwa": "0.7.19-r1273",
+    "samtools": "1.22.1",
+    "bcftools": "1.22",
+    "gatk": "4.7.0.0",
+    "fastqc": "0.12.1",
+    "fastp": "1.0.1",
+    "multiqc": "1.21"
+  }
+}
