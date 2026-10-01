@@ -35,6 +35,10 @@
 # Gene counts and differential expression do not: there is no depth. So do not
 # read the biology off a development run. That happens once, on the real data.
 #-----------------------------------------------------------------------------
+REF=${REF:-/courses/BINF6610.202710/data/refs/grch38-1000g/GRCh38_full_analysis_set_plus_decoy_hla.fa}
+REGION=${REGION:-chr20:1-10000000}
+THREADS=${THREADS:-4}
+
 set -euo pipefail
 
 # The folder this file is in, whichever folder you run it from, and when this
@@ -52,17 +56,9 @@ SHEET=${1:?usage: rnaseq.sh <samplesheet.csv> <outdir> [last-stage]}
 OUT=${2:?usage: rnaseq.sh <samplesheet.csv> <outdir> [last-stage]}
 LAST=${3:-publish}
 
-# Configuration. Everything has a default and can be overridden from the
-# environment, so no path is written into the code.
-REF_DIR=${REF_DIR:-data/refs/grch38}
-INDEX=${INDEX:-${REF_DIR}/hisat2/genome}
-GTF=${GTF:-${REF_DIR}/annotation.gtf}
-THREADS=${THREADS:-4}
-CONDITION_REF=${CONDITION_REF:-Healthy}
-
 QC="${OUT}/qc_raw"; TRIM="${OUT}/trim"; ALN="${OUT}/align"
-CNT="${OUT}/counts"; LOG="${OUT}/logs"; RES="${OUT}/results"
-mkdir -p "$QC" "$TRIM" "$ALN" "$CNT" "$LOG" "$RES"
+LOG="${OUT}/logs"; RES="${OUT}/results"; POST="${OUT}/postprocess"; GVCF="${OUT}/gvcf"; MERGE="${OUT}/merge"
+mkdir -p "$QC" "$TRIM" "$ALN" "$POST" "$LOG" "$GVCF" "$MERGE" "$RES"
 
 #--- two helpers, and they are the only ones ---------------------------------
 # Messages go to stderr so that a stage's stdout stays free for data.
@@ -84,7 +80,7 @@ done
 # 0 · validate — check everything before computing anything
 #=============================================================================
 stage_validate() {
-    local id cond rep lt r1 r2 problems=0 n1 n2 r1_ok r2_ok
+    local id cond rep lt r1 r2 problems=0 n1 n2 r1_ok r2_ok local dict="${REF%.*}.dict"
 
     while IFS=, read -r id cond rep lt r1 r2; do
         [[ -n "$id" ]] || { log "a row has no sample_id"; problems=$(( problems + 1 )); continue; }
@@ -133,8 +129,24 @@ stage_validate() {
     [[ -z "$dupes" ]] || { log "duplicate sample_id: $dupes"; problems=$(( problems + 1 )); }
 
     # the reference is where the config says it is
-    [[ -s "${INDEX}.1.ht2" ]] || { log "no HISAT2 index at ${INDEX}"; problems=$(( problems + 1 )); }
-    [[ -s "$GTF" ]]           || { log "no annotation at ${GTF}";     problems=$(( problems + 1 )); }
+[[ -s "${REF}.fai" ]] || {
+    log "reference FASTA index missing: ${REF}.fai"
+    problems=$(( problems + 1 ))
+}
+
+# check if the reference dictionary exists
+[[ -s "$dict" ]] || {
+    log "reference dictionary missing: $dict"
+    problems=$(( problems + 1 ))
+}
+
+# check the bwa index exists
+for ext in amb ann bwt pac sa; do
+    [[ -s "${REF}.${ext}" ]] || {
+        log "BWA index missing: ${REF}.${ext}"
+        problems=$(( problems + 1 ))
+    }
+done
 
     (( problems == 0 )) || die "validation failed with ${problems} problem(s)"
     log "validation passed"
@@ -183,31 +195,42 @@ stage_trim() {
 }
 
 #=============================================================================
-# 3 · align — HISAT2 straight into a sorted BAM
+# 3 · align — BWA straight into a sorted MEM
 #=============================================================================
 stage_align() {
     local id cond rep lt r1 r2 rate
     while IFS=, read -r id cond rep lt r1 r2; do
-        # The SAM never touches disk: hisat2's stdout goes down the pipe.
-        # This is only safe because `pipefail` is on -- otherwise hisat2 could
-        # die and samtools would still exit 0.
+        trimmed_r1="${TRIM}/${id}_R1.fastq.gz"
+        trimmed_r2="${TRIM}/${id}_R2.fastq.gz"
+        bam="${ALN}/${id}.bam"
+
+        log "$id: aligning reads with BWA"
+
         if [[ "$lt" == paired ]]; then
-            hisat2 -p "$THREADS" -x "$INDEX" \
-                   -1 "${TRIM}/${id}_R1.fastq.gz" -2 "${TRIM}/${id}_R2.fastq.gz" \
-                   2> "${LOG}/${id}.hisat2.log"
+
+            bwa mem \
+                -t "$THREADS" \
+                -R "@RG\tID:${id}\tSM:${id}" \
+                "$REF" \
+                "$trimmed_r1" \
+                "$trimmed_r2" |
+                samtools view -b -o "$bam" -
+
         else
-            hisat2 -p "$THREADS" -x "$INDEX" -U "${TRIM}/${id}_R1.fastq.gz" \
-                   2> "${LOG}/${id}.hisat2.log"
-        fi | samtools sort -@ 2 -o "${ALN}/${id}.bam"
 
-        samtools index "${ALN}/${id}.bam"
+            bwa mem \
+                -t "$THREADS" \
+                -R "@RG\tID:${id}\tSM:${id}" \
+                "$REF" \
+                "$trimmed_r1" |
+                samtools view -b -o "$bam" -
 
-        # hisat2 prints the alignment rate. Read it rather than compute it.
-        rate=$(awk '/overall alignment rate/ { sub("%", "", $1); print $1 }' \
-               "${LOG}/${id}.hisat2.log")
-        log "$id: ${rate}% aligned"
-        awk -v r="$rate" 'BEGIN { exit !(r > 50) }' \
-            || die "$id: alignment rate ${rate}% — wrong reference, or the mates are mixed up"
+        fi
+
+        [[ -s "$bam" ]] ||
+            die "$id: alignment produced no BAM"
+
+        log "$id: alignment complete"
     done < <(tail -n +2 "$SHEET")
 }
 
@@ -217,9 +240,57 @@ stage_align() {
 stage_postprocess() {
     local id cond rep lt r1 r2
     while IFS=, read -r id cond rep lt r1 r2; do
-        samtools flagstat "${ALN}/${id}.bam" > "${LOG}/${id}.flagstat.txt"
-        [[ -s "${LOG}/${id}.flagstat.txt" ]] || die "$id: flagstat wrote nothing"
-        log "$id: flagstat done"
+        bam="${ALN}/${id}.bam"
+        sorted_bam="${POST}/${id}.sorted.bam"
+        dedup_bam="${POST}/${id}.dedup.bam"
+        metrics="${POST}/${id}.duplicate_metrics.txt"
+
+        # Make sure Stage 3 produced the expected BAM.
+        [[ -s "$bam" ]] ||
+            die "$id: aligned BAM missing: $bam"
+
+        # Sort by genomic coordinate.
+        log "$id: sorting BAM"
+
+        samtools sort \
+            -@ "$THREADS" \
+            -o "$sorted_bam" \
+            "$bam"
+
+        [[ -s "$sorted_bam" ]] ||
+            die "$id: samtools sort produced no BAM"
+
+        # Index the sorted BAM.
+        log "$id: indexing sorted BAM"
+
+        samtools index "$sorted_bam"
+
+        [[ -s "${sorted_bam}.bai" ]] ||
+            die "$id: failed to index sorted BAM"
+
+        # Mark PCR/optical duplicates.
+        log "$id: marking duplicates"
+
+        gatk MarkDuplicates \
+            -I "$sorted_bam" \
+            -O "$dedup_bam" \
+            -M "$metrics"
+
+        [[ -s "$dedup_bam" ]] ||
+            die "$id: MarkDuplicates produced no BAM"
+
+        [[ -s "$metrics" ]] ||
+            die "$id: MarkDuplicates produced no metrics file"
+
+        # Index the final BAM used for variant calling.
+        log "$id: indexing deduplicated BAM"
+
+        samtools index "$dedup_bam"
+
+        [[ -s "${dedup_bam}.bai" ]] ||
+            die "$id: failed to index deduplicated BAM"
+
+        log "$id: postprocessing complete"
     done < <(tail -n +2 "$SHEET")
 }
 
@@ -229,20 +300,30 @@ stage_postprocess() {
 stage_quantify() {
     local id cond rep lt r1 r2 flag genes
     while IFS=, read -r id cond rep lt r1 r2; do
-        # -p counts fragments rather than reads for paired data.
-        # NOT --countReadPairs: that flag only exists from featureCounts 2.0.2,
-        # and the version installed here is 2.0.1. Found by running it.
-        flag=""
-        [[ "$lt" != paired ]] || flag="-p"
+        bam="${POST}/${id}.dedup.bam"
+        gvcf="${GVCF}/${id}.g.vcf.gz"
 
-        featureCounts -T "$THREADS" -a "$GTF" -t exon -g gene_id $flag \
-                      -o "${CNT}/${id}.counts.tsv" "${ALN}/${id}.bam" \
-                      2> "${LOG}/${id}.featurecounts.log"
+        # Make sure Stage 4 produced the required BAM and index.
+        [[ -s "$bam" ]] ||
+            die "$id: deduplicated BAM missing: $bam"
 
-        # featureCounts writes two header lines before the table.
-        genes=$(awk 'NR>2' "${CNT}/${id}.counts.tsv" | wc -l)
-        (( genes > 0 )) || die "$id: no genes counted"
-        log "$id: counted ${genes} genes"
+        [[ -s "${bam}.bai" ]] ||
+            die "$id: BAM index missing: ${bam}.bai"
+
+        log "$id: calling variants with GATK HaplotypeCaller"
+
+        gatk HaplotypeCaller \
+            -R "$REF" \
+            -I "$bam" \
+            -O "$gvcf" \
+            -L "$REGION" \
+            -ERC GVCF
+
+        [[ -s "$gvcf" ]] ||
+            die "$id: HaplotypeCaller produced no GVCF"
+
+        log "$id: GVCF complete"
+
     done < <(tail -n +2 "$SHEET")
 }
 
@@ -254,42 +335,73 @@ stage_quantify() {
 # Week 2 makes that a declaration instead of a line position.
 #=============================================================================
 stage_merge() {
-    local id cond rep lt r1 r2 first=1
+    local id cond rep lt r1 r2
+    local gvcf
+    local combined="${MERGE}/cohort.g.vcf.gz"
+    local cohort="${MERGE}/cohort.vcf.gz"
+    local -a gvcf_args=()
 
-    # samples.tsv — the metadata the analysis needs, in the order of the sheet
-    printf 'sample_id\tcondition\n' > "${RES}/samples.tsv"
+    # Collect all per-sample GVCFs.
     while IFS=, read -r id cond rep lt r1 r2; do
-        printf '%s\t%s\n' "$id" "$cond" >> "${RES}/samples.tsv"
+
+        gvcf="${GVCF}/${id}.g.vcf.gz"
+
+        [[ -s "$gvcf" ]] ||
+            die "$id: GVCF missing: $gvcf"
+
+        [[ -s "${gvcf}.tbi" ]] ||
+            die "$id: GVCF index missing: ${gvcf}.tbi"
+
+        gvcf_args+=("-V" "$gvcf")
+
     done < <(tail -n +2 "$SHEET")
 
-    # expression.tsv — gene ids down the side, samples across the top.
-    # awk holds every file's counts keyed by gene, then prints the union.
-    awk -f "$(dirname "$0")/merge_counts.awk" "${CNT}"/*.counts.tsv \
-        > "${RES}/expression.tsv"
+    # Combine the per-sample GVCFs.
+    log "combining per-sample GVCFs"
 
-    local n_genes n_cols
-    n_genes=$(awk 'NR>1' "${RES}/expression.tsv" | wc -l)
-    n_cols=$(head -1 "${RES}/expression.tsv" | awk -F'\t' '{ print NF - 1 }')
-    (( n_genes > 0 )) || die "merge produced no genes"
-    log "merged ${n_genes} genes x ${n_cols} samples"
+    gatk CombineGVCFs \
+        -R "$REF" \
+        "${gvcf_args[@]}" \
+        -O "$combined"
 
-    # The column count must equal the sample count. If it does not, a sample
-    # was dropped somewhere above and nothing has said so.
-    local n_samples
-    n_samples=$(awk -F, 'NR>1' "$SHEET" | wc -l)
-    (( n_cols == n_samples )) || die "matrix has ${n_cols} columns for ${n_samples} samples"
+    [[ -s "$combined" ]] ||
+        die "CombineGVCFs produced no cohort GVCF"
+
+    # Joint genotype all samples.
+    log "joint genotyping cohort"
+
+    gatk GenotypeGVCFs \
+        -R "$REF" \
+        -V "$combined" \
+        -O "$cohort"
+
+    [[ -s "$cohort" ]] ||
+        die "GenotypeGVCFs produced no cohort VCF"
+
+    log "joint genotyping complete"
 }
 
 #=============================================================================
 # 7 · analyze — DESeq2, in R, called with four arguments
 #=============================================================================
 stage_analyze() {
-    Rscript "$(dirname "$0")/analyze.R" \
-            "${RES}/expression.tsv" "${RES}/samples.tsv" "$RES" "$CONDITION_REF" \
-            2> "${LOG}/analyze.log" || die "DESeq2 failed — see ${LOG}/analyze.log"
+    local input="${MERGE}/cohort.vcf.gz"
+    local output="${RES}/cohort.filtered.vcf.gz"
 
-    [[ -s "${RES}/de_results.tsv" ]] || die "analyze produced no de_results.tsv"
-    log "DESeq2: $(awk 'NR>1' "${RES}/de_results.tsv" | wc -l) genes tested"
+    [[ -s "$input" ]] ||
+        die "cohort VCF missing: $input"
+
+    log "applying hard filters to cohort VCF"
+
+       gatk VariantFiltration \
+        -R "$REF" \
+        -V "$input" \
+        -O "$output" \
+
+    [[ -s "$output" ]] ||
+        die "VariantFiltration produced no filtered VCF"
+
+    log "variant filtering complete"
 }
 
 #=============================================================================
