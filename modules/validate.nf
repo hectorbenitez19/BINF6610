@@ -1,4 +1,3 @@
-
 process VALIDATE {
 
     tag "samplesheet"
@@ -18,6 +17,7 @@ process VALIDATE {
 
     script:
     """
+    cp ${samplesheet} samplesheet.csv
 
     validate_samplesheet.sh \
         samplesheet.csv \
