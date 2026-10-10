@@ -1,0 +1,45 @@
+{
+  "pipeline": {
+    "name": "variant-call",
+    "version": "1.0.0",
+    "implementation": "nextflow",
+    "revision": "none",
+    "git_sha": "none",
+    "run_id": "modest_ride",
+    "started_at": "2026-10-09T22:04:20.712798615-04:00",
+    "launch_dir": "/home/hector/BINF6610/Assignment1",
+    "finished_at": "2026-10-10T02:04:27Z",
+    "exit_status": "success"
+  },
+  "params": {
+    "samplesheet": "/home/hector/BINF6610/Assignment1/smoke/samplesheet.csv",
+    "ref": "/home/hector/BINF6610/Assignment1/smoke/smoke.fa",
+    "region": "smoke_1mb",
+    "outdir": "results",
+    "platform": "docker-local"
+  },
+  "platform": {
+    "kind": "docker-local",
+    "executor": "local",
+    "engine": "nextflow 26.04.7",
+    "containers": {
+      "tools": "community.wave.seqera.io/library/coreutils_gawk_gzip:7c58ccc2f9ca6bcc",
+      "fastqc": "quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0",
+      "fastp": "community.wave.seqera.io/library/fastp:1.3.7--075357a9d5c82494",
+      "bwa": "community.wave.seqera.io/library/bwa_samtools:22527ddb3cc80fb3",
+      "gatk": "community.wave.seqera.io/library/gatk4_samtools_bcftools:1adede7d418fb46b",
+      "multiqc": "quay.io/biocontainers/multiqc:1.35--pyhdfd78af_2"
+    }
+  },
+  "samples": [
+    {"sample_id": "smoke_01", "library_type": "paired", "condition": "unaffected"},
+    {"sample_id": "smoke_02", "library_type": "paired", "condition": "affected"},
+    {"sample_id": "smoke_03", "library_type": "single", "condition": "affected"}
+  ],
+  "outputs": [
+    {"path": "cohort.filtered.vcf.gz", "checksum": "sha256:74126d33b018f1f540f6f6d02c488c1d681a78865b33bb62ac9f0d8b0852d5cc"},
+    {"path": "multiqc_report.html", "checksum": "sha256:aea343b0aaea6180d0d6d739a7a317f63fb0fdc399fc8eb8ea1b48458e3ba045"},
+    {"path": "samples.tsv", "checksum": "sha256:d534edf8132cce4c541af0eea6cc345b17613e1b4a7a5286742aa8d16395257c"},
+    {"path": "variants.tsv", "checksum": "sha256:f5a6058ef57bdb3cc097891a157160a627f19abee2dcee5ebd2cdd25131002ca"}
+  ]
+}
