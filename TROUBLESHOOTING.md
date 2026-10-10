@@ -1,0 +1,3 @@
+I used AI to help assist me when writing this assignment. The AI was used to help me troubleshoot when I get stuck on problems and refactor certian parts of the code.
+
+1. While implementing the pipeline I ran into an issue where it stopped halfway and then I had to resume the pipeline to finish it. What I found was that maniac_mccarthy, failed at 21:12:46. I resumed and the execution berserk_mestorf completed successfully at 21:20:51 they both shared the same Nextflow ID. The VALIDATE, FASTQC, FASTP, and BWA_MEM stages were cached but the MARKDUPLICATES stage had to be executed again.
