@@ -1,1 +1,33 @@
 smoke/
+# Nextflow working directories and cache
+work/
+.nextflow/
+.nextflow.log
+.nextflow.log.*
+
+# Generated pipeline results
+results/
+smoke-run-nf/
+cluster-run-nf/
+
+# Large sequencing and alignment files
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.bam
+*.bai
+*.cram
+
+# Generated variant files
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+*.g.vcf.gz
+*.g.vcf.gz.tbi
+
+# QC reports
+*_fastqc.html
+*_fastqc.zip
+*.fastp.html
+*.fastp.json
