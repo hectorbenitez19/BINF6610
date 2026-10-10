@@ -29,6 +29,6 @@ process FILTER {
     bcftools query \\
         -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%QUAL\\t%FILTER\\n' \\
         cohort.filtered.vcf.gz \\
-        > variants.tsv
+        >> variants.tsv
     """
 }
