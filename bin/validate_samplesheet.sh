@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -9,14 +8,23 @@ REGION=${3:?Missing region}
 errors=0
 declare -A seen=()
 
+# Resolve relative FASTQ paths from the samplesheet's directory.
+sheet_dir=$(cd "$(dirname "$SHEET")" && pwd)
+
 while IFS=, read -r id cond rep lt r1 r2 rest; do
     [[ "$id" == "sample_id" ]] && continue
     [[ -z "$id" ]] && continue
 
-    r1=$(basename "$r1")
+    # Remove Windows carriage returns if present.
+    r1="${r1%$'\r'}"
+    r2="${r2%$'\r'}"
 
-    if [[ -n "$r2" ]]; then
-        r2=$(basename "$r2")
+    if [[ "$r1" != /* ]]; then
+        r1="$sheet_dir/$r1"
+    fi
+
+    if [[ -n "$r2" && "$r2" != /* ]]; then
+        r2="$sheet_dir/$r2"
     fi
 
     if [[ -z "$id" || ! "$id" =~ ^[A-Za-z0-9._\ -]+$ ]]; then

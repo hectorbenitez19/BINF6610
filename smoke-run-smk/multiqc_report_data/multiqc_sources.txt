@@ -1,0 +1,9 @@
+Module	Section	Sample Name	Source
+fastp	all_sections	smoke_01_R1	/home/hector/BINF6610/Assignment1/work/trim/smoke_01.fastp.json
+fastp	all_sections	smoke_02_R1	/home/hector/BINF6610/Assignment1/work/trim/smoke_02.fastp.json
+fastp	all_sections	smoke_03_R1	/home/hector/BINF6610/Assignment1/work/trim/smoke_03.fastp.json
+FastQC	all_sections	smoke_01_R1	/home/hector/BINF6610/Assignment1/work/fastqc/smoke_01_R1_fastqc.zip
+FastQC	all_sections	smoke_02_R1	/home/hector/BINF6610/Assignment1/work/fastqc/smoke_02_R1_fastqc.zip
+FastQC	all_sections	smoke_03_R1	/home/hector/BINF6610/Assignment1/work/fastqc/smoke_03_R1_fastqc.zip
+FastQC	all_sections	smoke_01_R2	/home/hector/BINF6610/Assignment1/work/fastqc/smoke_01_R2_fastqc.zip
+FastQC	all_sections	smoke_02_R2	/home/hector/BINF6610/Assignment1/work/fastqc/smoke_02_R2_fastqc.zip
