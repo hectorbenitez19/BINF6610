@@ -9,6 +9,7 @@ work/
 # Generated pipeline results
 results/
 
+.snakemake/
 
 # Large sequencing and alignment files
 *.fastq

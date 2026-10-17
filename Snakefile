@@ -350,7 +350,7 @@ rule multiqc:
         """
         multiqc {input.fastqc} {input.fastp} \
             --filename multiqc_report.html \
-            --outdir results \
+            --outdir {OUT} \
             --force \
             > {log} 2>&1
         """

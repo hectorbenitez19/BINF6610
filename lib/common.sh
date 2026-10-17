@@ -50,25 +50,56 @@ mkdir -p "$QC" "$TRIM" "$ALN" "$POST" "$LOG" "$GVCF" "$MERGE" "$RES"
 # Given a sample id it emits that row and nothing else, so a stage body does
 # not need to know which driver called it.
 rows() {
-    local sheet=$1 only=${2:-}
+    local sheet=$1
+    local only=${2:-}
+
     awk -F, -v want="$only" -v root="$FASTQ_ROOT" '
-        BEGIN { n = split("sample_id condition replicate library_type r1_fastq r2_fastq", need, " ") }
+        BEGIN {
+            n = split("sample_id condition replicate library_type r1_fastq r2_fastq sex population source_accession is_synthetic_phenotype", need, " ")
+        }
+
         NR == 1 {
-            for (i = 1; i <= NF; i++) col[$i] = i
-            for (i = 1; i <= n; i++)
+            for (i = 1; i <= NF; i++) {
+                gsub(/\r/, "", $i)
+                col[$i] = i
+            }
+
+            for (i = 1; i <= n; i++) {
                 if (!(need[i] in col)) {
                     print "samplesheet has no column named " need[i] > "/dev/stderr"
                     exit 65
                 }
+            }
+
             next
         }
-        want != "" && $col["sample_id"] != want { next }
+
+        want != "" && $col["sample_id"] != want {
+            next
+        }
+
         {
-            r1 = $col["r1_fastq"]; r2 = $col["r2_fastq"]
-            if (r1 != "" && r1 !~ /^\//) r1 = root "/" r1
-            if (r2 != "" && r2 !~ /^\//) r2 = root "/" r2
-            print $col["sample_id"] "," $col["condition"] "," $col["replicate"] \
-                  "," $col["library_type"] "," r1 "," r2
+            gsub(/\r/, "")
+
+            r1 = $col["r1_fastq"]
+            r2 = $col["r2_fastq"]
+
+            if (r1 != "" && r1 !~ /^\//)
+                r1 = root "/" r1
+
+            if (r2 != "" && r2 !~ /^\//)
+                r2 = root "/" r2
+
+            print $col["sample_id"] \
+                  "," $col["condition"] \
+                  "," $col["replicate"] \
+                  "," $col["library_type"] \
+                  "," r1 \
+                  "," r2 \
+                  "," $col["sex"] \
+                  "," $col["population"] \
+                  "," $col["source_accession"] \
+                  "," $col["is_synthetic_phenotype"]
         }
     ' "$sheet"
 }
