@@ -4,7 +4,7 @@ configfile: profiles/explorer/platform.yaml
 
 software-deployment-method: apptainer
 apptainer-prefix: /courses/BINF6610.202710/shared/snakemake-images
-apptainer-args: "--bind /courses,/scratch"
+apptainer-args: "--bind /courses,/scratch,/home/beniez.h/BINF6610"
 
 latency-wait: 60
 printshellcmds: true
