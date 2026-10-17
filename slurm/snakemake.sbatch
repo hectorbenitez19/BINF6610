@@ -17,11 +17,10 @@ mkdir -p "$APPTAINER_CACHEDIR"
 
 cd "${SLURM_SUBMIT_DIR}"
 
-snakemake \
+snakemake --profile profiles/explorer \
     --snakefile "$HOME/BINF6610/Snakefile" \
     --directory "$HOME/BINF6610/snakemake-explorer-run" \
     --configfile "$HOME/BINF6610/config.yaml" \
-    --profile "$HOME/BINF6610/profiles/explorer" \
     --executor slurm \
     --config \
         platform=singularity-hpc \

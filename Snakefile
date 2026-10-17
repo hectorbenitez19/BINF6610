@@ -87,6 +87,7 @@ rule all:
         f"{OUT}/multiqc_report.html",
         f"{OUT}/samples.tsv",
         f"{OUT}/manifest.json"
+# Run validation for the pipeline        
 rule validate:
     input:
         sheet=SHEET,
@@ -107,6 +108,7 @@ rule validate:
         ({BIN}/validate_samplesheet.sh {input.sheet} {input.ref} '{params.region}' &&
          cp {input.sheet} {output}) > {log} 2>&1
         """
+# Stage 1 fastqc step
 rule fastqc:
     input:
         checked=rules.validate.output,
@@ -131,6 +133,7 @@ rule fastqc:
         mv {params.outdir}/*_fastqc.zip {output.zip}
         rmdir {params.outdir}
         """
+# Stage 2 fastp paired reads
 rule fastp_paired:
     input:
         checked=rules.validate.output,
@@ -160,6 +163,7 @@ rule fastp_paired:
             --thread {threads} \
             > {log} 2>&1
         """
+# Stage 2 Fastp on single reads
 rule fastp_single:
     input:
         checked=rules.validate.output,
@@ -185,6 +189,8 @@ rule fastp_single:
             --thread {threads} \
             > {log} 2>&1
         """
+
+# Stage 4 bwa
 rule bwa_mem:
     input:
         reads=trimmed,
@@ -209,6 +215,7 @@ rule bwa_mem:
 
         samtools index {output.bam} {output.bai} 2>> {log}
         """
+# Stage 5 duplicates
 rule markduplicates:
     input:
         bam="work/alignment/{sample}.sorted.bam",
@@ -233,6 +240,7 @@ rule markduplicates:
 
         mv work/dedup/{wildcards.sample}.dedup.bai {output.bai}
         """
+# Stage 6 haplotypecaller
 rule haplotypecaller:
     input:
         bam="work/dedup/{sample}.dedup.bam",
@@ -261,6 +269,7 @@ rule haplotypecaller:
             --native-pair-hmm-threads {threads} \
             > {log} 2>&1
         """
+# Stage 7 joint genotype
 rule joint_genotype:
     input:
         gvcfs=expand("work/gvcf/{sample}.g.vcf.gz", sample=SAMPLES),
@@ -297,6 +306,7 @@ rule joint_genotype:
             -L {params.region} \
             >> {log} 2>&1
         """
+# Stage 8 filter
 rule filter:
     input:
         vcf=rules.joint_genotype.output.vcf,
@@ -331,6 +341,7 @@ rule filter:
             -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t%FILTER\n' \
             {output.vcf} >> {output.table} 2>> {log}
         """
+# Stage 9 multiqc
 rule multiqc:
     input:
         fastqc=(
@@ -354,7 +365,7 @@ rule multiqc:
             --force \
             > {log} 2>&1
         """
-# Stage 9: Publish final results
+# Stage 10: Publish final results
 
 PUBLISH_SHEET = rules.validate.output
 
