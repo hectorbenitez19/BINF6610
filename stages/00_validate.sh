@@ -2,7 +2,8 @@
 set -euo pipefail   # already set by the driver that sources this; stated here so the file says so itself
 # 0 · validate — check everything before computing anything.
 stage_validate() {
-    local id cond rep lt r1 r2 problems=0 n1 n2 r1_ok r2_ok local dict="${REF%.*}.dict"
+    local id cond rep lt r1 r2 problems=0 n1 n2 r1_ok r2_ok
+    local dict="${REF%.*}.dict"
 
     while IFS=, read -r id cond rep lt r1 r2; do
         [[ -n "$id" ]] || { log "a row has no sample_id"; problems=$(( problems + 1 )); continue; }
