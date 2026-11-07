@@ -15,7 +15,7 @@ stage_analyze() {
         -V "$input" \
         -O "$output" \
         --filter-name "QD20" \
-        --filter-expression "QD < 20.0"
+        --filter-expression "QD < 2.0"
 
         
 
