@@ -1,3 +1,4 @@
+
 nextflow.enable.dsl = 2
 
 include { VALIDATE } from './modules/validate'
@@ -41,11 +42,14 @@ workflow {
             [meta, reads]
         }
 
-        ref = file(params.ref)
-        ref_index = files("${params.ref}.*")
-        ref_dict = file("${ref.parent}/${ref.baseName}.dict")
+    // Step 3: Reference and index files
+    ref = file(params.ref)
+    ref_index = files("${params.ref}.*")
 
-        VALIDATE(
+    // Assignment 6: S3-compatible reference dictionary path
+    ref_dict = ref.resolveSibling("${ref.baseName}.dict")
+
+    VALIDATE(
         sheet,
         ch_samples.map { meta, reads -> reads }.collect(),
         ref,
@@ -54,72 +58,82 @@ workflow {
         params.region
     )
 
-    // Step 3: Display the channel contents
+    // Step 4: Validate samples
     ch_checked = ch_samples
         .combine(VALIDATE.out.sheet)
         .map { meta, reads, validated -> [meta, reads] }
 
+    // Step 5: Quality control and preprocessing
     FASTQC(ch_checked)
     FASTP(ch_checked)
 
+    // Step 6: Alignment
     BWA_MEM(
         FASTP.out.reads,
         ref,
         ref_index
     )
 
+    // Step 7: Mark duplicates
     MARKDUPLICATES(
         BWA_MEM.out.bam
     )
 
+    // Step 8: Variant calling
     HAPLOTYPECALLER(
-    MARKDUPLICATES.out.bam,
-    ref,
-    ref_index,
-    ref_dict,
-    params.region
-)
+        MARKDUPLICATES.out.bam,
+        ref,
+        ref_index,
+        ref_dict,
+        params.region
+    )
 
-JOINT_GENOTYPE(
-    HAPLOTYPECALLER.out.gvcf.collect(),
-    HAPLOTYPECALLER.out.index.collect(),
-    ref,
-    ref_index,
-    ref_dict,
-    params.region
-)
+    // Step 9: Joint genotyping
+    JOINT_GENOTYPE(
+        HAPLOTYPECALLER.out.gvcf.collect(),
+        HAPLOTYPECALLER.out.index.collect(),
+        ref,
+        ref_index,
+        ref_dict,
+        params.region
+    )
 
-FILTER(
-    JOINT_GENOTYPE.out.vcf,
-    JOINT_GENOTYPE.out.index
-)
+    // Step 10: Filter variants
+    FILTER(
+        JOINT_GENOTYPE.out.vcf,
+        JOINT_GENOTYPE.out.index
+    )
 
-MULTIQC(
-    FASTQC.out.zip.flatten().collect(),
-    FASTP.out.json.collect()
-)
+    // Step 11: Aggregate quality control reports
+    MULTIQC(
+        FASTQC.out.zip.flatten().collect(),
+        FASTP.out.json.collect()
+    )
 
-PUBLISH(
-    VALIDATE.out.sheet,
-    FILTER.out.vcf
-        .mix(FILTER.out.table, MULTIQC.out.report)
-        .collect()
-)
+    // Step 12: Publish final results
+    PUBLISH(
+        VALIDATE.out.sheet,
+        FILTER.out.vcf
+            .mix(
+                FILTER.out.table,
+                MULTIQC.out.report
+            )
+            .collect()
+    )
 
-publish:
-      final_results = PUBLISH.out.manifest
+    publish:
+
+    final_results = PUBLISH.out.manifest
         .mix(
             PUBLISH.out.samples,
             FILTER.out.vcf,
             FILTER.out.table,
             MULTIQC.out.report
         )
-
 }
 
 output {
-     final_results {
+    final_results {
         path '.'
     }
-
 }

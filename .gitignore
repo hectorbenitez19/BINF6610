@@ -1,4 +1,5 @@
-smoke/
+/smoke/
+*:Zone.Identifier
 # Nextflow working directories and cache
 work/
 .nextflow*
@@ -32,3 +33,11 @@ results/
 *_fastqc.zip
 *.fastp.html
 *.fastp.json
+
+# Assignment 8: allow the CI smoke dataset
+!tests/smoke/
+!tests/smoke/**
+
+# Generated CI and CD output
+ci-out/
+cd-run*/
