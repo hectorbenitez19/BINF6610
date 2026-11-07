@@ -1,0 +1,44 @@
+{
+  "pipeline": {
+    "name": "rnaseq-de",
+    "version": "1.0.0",
+    "implementation": "aws-batch",
+    "git_sha": "6c11969948ea1065c56d2d6830f1830f6a1597f3-dirty",
+    "run_id": "2026-11-07T01:39:22Z-6c11969",
+    "started_at": "2026-11-07T01:39:22Z",
+    "finished_at": "2026-11-07T01:43:45Z",
+    "exit_status": "success"
+  },
+  "platform": {
+    "kind": "aws-batch",
+    "region": "none",
+    "host": "ip-172-31-10-104.us-east-2.compute.internal",
+    "slurm_job_id": "none",
+    "slurm_cpus": "none",
+    "container": "none",
+    "batch_job_id": "8c1db759-42af-4988-b104-90d9cd44e514",
+    "batch_queue": "binf6610-queue",
+    "batch_compute_environment": "binf6610-fargate"
+  },
+  "reference": {"genome": "/courses/BINF6610.202710/data/refs/grch38/hisat2/genome", "annotation": "/courses/BINF6610.202710/data/refs/grch38/annotation.gtf"},
+  "samples": [
+    {"sample_id": "smoke_01", "library_type": "paired", "condition": "unaffected"},
+    {"sample_id": "smoke_02", "library_type": "paired", "condition": "affected"},
+    {"sample_id": "smoke_03", "library_type": "single", "condition": "affected"}
+  ],
+  "outputs": [
+    {"stage": "analyze", "type": "vcf", "path": "cohort.filtered.vcf.gz", "checksum": "sha256:45ab6f760fe5ed8e76a75709c0d40d4ce3791b7adc4b6fa8fe328e9b64865060"},
+    {"stage": "analyze", "type": "vcf_index", "path": "cohort.filtered.vcf.gz.tbi", "checksum": "sha256:cd144d951895959a708dca637f5ad4b4bb0d510998c616d86809d0d8deef5234"},
+    {"stage": "qc_report", "type": "multiqc", "path": "multiqc_report.html", "checksum": "sha256:efb3a95e26a5d470385d1b9fd7228884e0659cdac5a79ee13b9637cad3914e0b"}
+  ],
+  "metrics": [],
+  "tools": {
+    "bwa": "0.7.19-r1273",
+    "samtools": "1.24",
+    "bcftools": "1.24",
+    "gatk": "4.6.2.0",
+    "fastqc": "0.12.1",
+    "fastp": "1.3.7",
+    "multiqc": "1.35"
+  }
+}
