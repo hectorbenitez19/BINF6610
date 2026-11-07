@@ -68,7 +68,7 @@ git_sha() {
         echo "${sha}"
     fi
 }
-SHA=$(git_sha)
+SHA=${GIT_SHA:-$(git_sha)}
 
 
 # --- where: AWS Batch, Apptainer, Slurm, or laptop -------------------------------
