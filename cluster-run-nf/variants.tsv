@@ -1,3 +1,4 @@
+chrom	pos	ref	alt	qual	filter
 chr20	61083	C	T	581.07	PASS
 chr20	61411	T	A	122.84	PASS
 chr20	61413	C	G	121.55	PASS

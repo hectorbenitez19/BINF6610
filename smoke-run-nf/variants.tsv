@@ -1,3 +1,4 @@
+chrom	pos	ref	alt	qual	filter
 smoke_1mb	170	G	GC	206.62	PASS
 smoke_1mb	446	G	A	318.44	PASS
 smoke_1mb	532	G	C	155.29	PASS

@@ -20,6 +20,7 @@ results/
 *.bam
 *.bai
 *.cram
+*.db
 
 # Generated variant files
 *.vcf
@@ -41,3 +42,7 @@ results/
 # Generated CI and CD output
 ci-out/
 cd-run*/
+
+# Python-generated files
+__pycache__/
+*.pyc
