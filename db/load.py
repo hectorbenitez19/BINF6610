@@ -1,10 +1,8 @@
-
 import csv
 import json
 import os
 import sqlite3
 import sys
-from pathlib import Path
 
 
 METADATA_COLUMNS = [
@@ -46,7 +44,7 @@ def load_run(con, folder):
     pipeline = manifest["pipeline"]
     run_id = pipeline["run_id"]
 
-    # An existing run must not be loaded a second time.
+
     if con.execute(
         "SELECT 1 FROM runs WHERE run_id = ?", (run_id,)
     ).fetchone():
@@ -54,7 +52,7 @@ def load_run(con, folder):
         return
 
     with con:
-        # 1. Pipeline version
+
         con.execute(
             """
             INSERT INTO pipelines (name, version, implementation)
@@ -81,7 +79,7 @@ def load_run(con, folder):
             )
         ).fetchone()[0]
 
-        # 2. Run
+
         params = manifest["params"]
         platform = manifest["platform"]
 
@@ -109,11 +107,11 @@ def load_run(con, folder):
             )
         )
 
-        # 3. Samples and run_samples
+
         for sample in manifest["samples"]:
             sample_id = sample["sample_id"]
 
-            # Add smoke samples not listed in cohort metadata.
+
             con.execute(
                 """
                 INSERT INTO samples (sample_id)
@@ -123,7 +121,7 @@ def load_run(con, folder):
                 (sample_id,)
             )
 
-            # A duplicate sample in the same run raises an error.
+
             con.execute(
                 """
                 INSERT INTO run_samples (
@@ -139,9 +137,7 @@ def load_run(con, folder):
                 )
             )
 
-        # 4. Variants (six columns, no header)
 
-        # 4. Variants (supports files with or without headers)
         with open(os.path.join(folder, "variants.tsv"), newline="") as f:
             reader = csv.reader(f, delimiter="\t")
 
@@ -174,7 +170,7 @@ def load_run(con, folder):
                 )
 
 
-        # 5. Outputs
+
         for output in manifest["outputs"]:
             checksum = output["checksum"]
 
